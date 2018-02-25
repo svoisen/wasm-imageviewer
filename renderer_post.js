@@ -1,0 +1,1 @@
+Module['initializeOpenGL'] = Module.cwrap('initializeOpenGL', 'number', ['number', 'number']);
