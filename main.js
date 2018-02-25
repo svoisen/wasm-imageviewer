@@ -4,10 +4,11 @@ const ImageViewer = {};
 
   function Program(canvas) {
     const init = Module.initializeOpenGL(canvas.width, canvas.height);
+    this.invalidate();
   };
 
   Program.prototype.render = function () {
-
+    Module.render();
   };
 
   Program.prototype.invalidate = function () {
