@@ -2,12 +2,15 @@
 #include <GLES3/gl3.h>
 #include <GLES2/gl2ext.h>
 #include <SDL/SDL.h>
-
 #include <emscripten.h>
 
-SDL_Surface *screen;
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
+SDL_Surface *screen;
 GLuint program;
+GLuint texture;
+bool textureLoaded = false;
 
 GLfloat planeVertices[] = {
     -1.0f, -1.0f, 0.0f,
@@ -19,21 +22,22 @@ GLfloat planeVertices[] = {
 };
 
 const char vertexShaderSrc[] =
-    "#version 300 es                        \n"
-    "in vec4 vert;                          \n"
-    "out vec3 color;                        \n"
-    "void main() {                          \n"
-    "   gl_Position = vert;                 \n"
-    "   color = gl_Position.xyz + vec3(0.5);\n"
-    "}                                      \n";
+    "#version 300 es                         \n"
+    "in vec4 vert;                           \n"
+    "out vec2 texCoord;                      \n"
+    "void main() {                           \n"
+    "   gl_Position = vert;                  \n"
+    "   texCoord = vec2((vert.x + 1.0f) / 2.0f, (1.0f - vert.y) / 2.0);\n"
+    "}                                       \n";
 
 const char fragmentShaderSrc[] =
     "#version 300 es                        \n"
     "precision mediump float;               \n"
-    "in vec3 color;                         \n"
+    "uniform sampler2D tex;                 \n"
+    "in vec2 texCoord;                      \n"
     "out vec4 finalColor;                   \n"
     "void main() {                          \n"
-    "   finalColor = vec4(color, 1.0);      \n"
+    "   finalColor = texture(tex, texCoord);\n"
     "}                                      \n";
 
 GLuint compileShader(GLenum type, const char *source) {
@@ -98,25 +102,76 @@ int initializeOpenGL(int width, int height)
 
 void render() {
     glClear(GL_COLOR_BUFFER_BIT);
+
+    if (!textureLoaded) {
+        std::cout << "No image to render" << std::endl;
+        return;
+    }
+
+    std::cout << "Rendering image" << std::endl;
     glUseProgram(program);
 
+    // Setup VBO
     GLuint vbo;
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, 6 * 3 * sizeof(GLfloat), planeVertices, GL_STATIC_DRAW);
 
+    // Setup VAO
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
     GLint vertexPositionAttribute = glGetAttribLocation(program, "vert");
     glBindVertexArray(vao);
     glEnableVertexAttribArray(vertexPositionAttribute);
     glVertexAttribPointer(vertexPositionAttribute, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+    // Bind to texture
+    GLuint textureUniform = glGetUniformLocation(program, "tex");
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glUniform1i(textureUniform, 0);
+
+    // Draw
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
+    // Unbind
+    glBindTexture(GL_TEXTURE_2D, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
     SDL_GL_SwapBuffers();
+}
+
+int loadJPEGImage(uint8_t* buffer, size_t size) {
+    // Delete any existing textures before proceeding
+    if (textureLoaded) {
+        glDeleteTextures(1, &texture);
+        textureLoaded = false;
+    }
+
+    int width, height, channels;
+    uint8_t* imageData = stbi_load_from_memory(buffer, static_cast<int>(size), &width, &height, &channels, 0);
+    if (!imageData) {
+        std::cerr << "Error loading image" << std::endl;
+        return 0;
+    } 
+
+    std::cout << "Loaded image with dimensions " << width << "x" << height << " and size " << size << std::endl;
+
+    // Generate texture
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, imageData);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    stbi_image_free(imageData);
+    textureLoaded = true;
+    return 1;
 }
 
 }
