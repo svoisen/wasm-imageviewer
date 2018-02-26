@@ -27,12 +27,14 @@
     const container = document.getElementById('container');
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
+
+    var Module = {};
+    Module.canvas = canvas;
+    Module.onRuntimeInitialized = () => {
+      ImageViewer.run(container, canvas);
+    };
   </script>
   <script type="text/javascript" src="renderer.js"></script>
   <script type="text/javascript" src="main.js"></script>
-  <script type="text/javascript">
-    Module.canvas = canvas;
-    ImageViewer.run(container, canvas);
-  </script>
 </body>
 </html>
