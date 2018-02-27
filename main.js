@@ -4,7 +4,7 @@ const ImageViewer = {};
 
   function Program(container, canvas) {
     const init = Module.initializeOpenGL(canvas.width, canvas.height);
-    this._setupDragDrop(container);
+    this._setupDragDrop();
     this._invalidate();
   };
 
@@ -16,9 +16,9 @@ const ImageViewer = {};
     window.requestAnimationFrame(this.render.bind(this));
   }
 
-  Program.prototype._setupDragDrop = function (container) {
-    container.addEventListener('dragover', this._handleDragOver.bind(this));
-    container.addEventListener('drop', this._handleDrop.bind(this));
+  Program.prototype._setupDragDrop = function () {
+    document.addEventListener('dragover', this._handleDragOver.bind(this));
+    document.addEventListener('drop', this._handleDrop.bind(this));
   }
 
   Program.prototype._handleDragOver = function (event) {
@@ -34,8 +34,8 @@ const ImageViewer = {};
     if (files && files.length === 1 && files[0].type.match('image/jpeg')) {
       const fileReader = new FileReader();
       fileReader.onload = (event) => {
-        const fileData = new Uint8Array(event.target.result);
-        if (this._loadJPEGImage(fileData)) {
+        if (this._loadImageCopyToHeapCwrap(new Uint8Array(event.target.result))) {
+        // if (this._loadImageCopyToHeapCallDirect(new Uint8Array(event.target.result))) {
           this._invalidate();
         }
       };
@@ -50,13 +50,28 @@ const ImageViewer = {};
     }
   }
 
-  Program.prototype._loadJPEGImage = function (imageData) {
+  Program.prototype._loadImageCopyToHeapCwrap = function (imageData) {
+    const startTime = new Date();
     const numBytes = imageData.length * imageData.BYTES_PER_ELEMENT;
     const dataPtr = Module._malloc(numBytes);
-    const dataOnHeap = new Uint8Array(Module.HEAP8.buffer, dataPtr, numBytes);
+    const dataOnHeap = new Uint8Array(Module.HEAPU8.buffer, dataPtr, numBytes);
     dataOnHeap.set(imageData);
     const didLoad = Module.loadJPEGImage(dataOnHeap.byteOffset, imageData.length);
     Module._free(dataPtr);
+    console.log('[Copy to Heap (Cwrap)] Time to load: ' + (new Date() - startTime));
+
+    return didLoad;
+  }
+
+  Program.prototype._loadImageCopyToHeapCallDirect = function (imageData) {
+    const startTime = new Date();
+    const numBytes = imageData.length * imageData.BYTES_PER_ELEMENT;
+    const dataPtr = Module._malloc(numBytes);
+    const dataOnHeap = new Uint8Array(Module.HEAPU8.buffer, dataPtr, numBytes);
+    dataOnHeap.set(imageData);
+    const didLoad = Module._loadJPEGImage(dataOnHeap.byteOffset, imageData.length);
+    Module._free(dataPtr);
+    console.log('[Copy to Heap (Direct)] Time to load: ' + (new Date() - startTime));
 
     return didLoad;
   }
