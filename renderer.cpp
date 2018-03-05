@@ -1,13 +1,14 @@
 #include <iostream>
 #include <GLES3/gl3.h>
 #include <GLES2/gl2ext.h>
-#include <SDL/SDL.h>
+#include <SDL2/SDL.h>
 #include <emscripten.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-SDL_Surface *screen;
+SDL_Window *window;
+SDL_GLContext glContext;
 GLuint program;
 GLuint texture;
 bool textureLoaded = false;
@@ -22,13 +23,14 @@ GLfloat planeVertices[] = {
 };
 
 const char vertexShaderSrc[] =
-    "#version 300 es                         \n"
-    "in vec4 vert;                           \n"
-    "out vec2 texCoord;                      \n"
-    "void main() {                           \n"
-    "   gl_Position = vert;                  \n"
+    "#version 300 es                                                   \n"
+    "uniform float zoom;                                               \n"
+    "in vec4 vert;                                                     \n"
+    "out vec2 texCoord;                                                \n"
+    "void main() {                                                     \n"
+    "   gl_Position = vec4(vert.xy * zoom, 0.0f, 1.0f);                \n"
     "   texCoord = vec2((vert.x + 1.0f) / 2.0f, (1.0f - vert.y) / 2.0);\n"
-    "}                                       \n";
+    "}                                                                 \n";
 
 const char fragmentShaderSrc[] =
     "#version 300 es                        \n"
@@ -83,12 +85,15 @@ extern "C" {
 
 int initializeOpenGL(int width, int height)
 {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER) == 0) {
-        screen = SDL_SetVideoMode(width, height, 0, SDL_OPENGL);
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0) {
+        window = SDL_CreateWindow("Image Viewer", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_OPENGL);
     } else {
         std::cerr << "Error initializing SDL: " << SDL_GetError() << std::endl;
         return 0;
     }
+
+    glContext = SDL_GL_CreateContext(window);
+    SDL_EventState(SDL_MOUSEWHEEL, SDL_IGNORE);
 
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSrc);
     GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSrc);
@@ -100,7 +105,7 @@ int initializeOpenGL(int width, int height)
     return 1;
 }
 
-void render() {
+void render(float zoom) {
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (!textureLoaded) {
@@ -131,6 +136,10 @@ void render() {
     glBindTexture(GL_TEXTURE_2D, texture);
     glUniform1i(textureUniform, 0);
 
+    // Set zoom
+    GLuint zoomUniform = glGetUniformLocation(program, "zoom");
+    glUniform1f(zoomUniform, zoom);
+
     // Draw
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -139,7 +148,7 @@ void render() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-    SDL_GL_SwapBuffers();
+    SDL_GL_SwapWindow(window);
 }
 
 int loadJPEGImage(uint8_t* buffer, size_t size) {
@@ -150,22 +159,22 @@ int loadJPEGImage(uint8_t* buffer, size_t size) {
     }
 
     int width, height, channels;
-    uint8_t* imageData = stbi_load_from_memory(buffer, static_cast<int>(size), &width, &height, &channels, 0);
+    uint8_t* imageData = stbi_load_from_memory(buffer, static_cast<int>(size), &width, &height, &channels, STBI_rgb_alpha);
     if (!imageData) {
         std::cerr << "Error loading image" << std::endl;
         return 0;
     } 
 
-    std::cout << "Loaded image with dimensions " << width << "x" << height << " and size " << size << std::endl;
+    std::cout << "Loaded image with dimensions " << width << "x" << height << ", size " << size << ", and channels " << channels << std::endl;
 
     // Generate texture
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, imageData);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
     glGenerateMipmap(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, 0);
 

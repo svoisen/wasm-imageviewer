@@ -2,6 +2,7 @@ CC=emcc
 SRC=renderer.cpp
 CFLAGS=-Werror -std=c++11 -O2 -g0
 EMSCRIPTEN_FLAGS=-s USE_WEBGL2=1 \
+	-s USE_SDL=2 \
 	-s WASM=1 \
 	-s TOTAL_MEMORY=134217728 \
 	-s EXPORTED_FUNCTIONS='["_initializeOpenGL", "_render", "_loadJPEGImage"]'
