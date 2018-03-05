@@ -28,7 +28,7 @@ const ImageViewer = {};
     event.stopPropagation();
     event.preventDefault();
     const delta = Math.max(-1, Math.min(1, event.wheelDelta || -event.detail));
-    this.zoom = Math.max(0, this.zoom + delta * 0.05);
+    this.zoom = Math.max(1, this.zoom + delta * 0.05);
     this._invalidate();
   }
 
@@ -57,6 +57,7 @@ const ImageViewer = {};
       fileReader.readAsArrayBuffer(files[0]);
     } else {
       console.error('Unsupported files or content dropped.');
+      alert('This demo only supports displaying JPEG files.');
     }
   }
 
