@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300" rel="stylesheet"> 
+  <title>Wasm Image Viewer</title>
+  <style>
+    html, body {
+      padding: 0;
+      margin: 0;
+      text-align: center;
+      font-family: 'Open Sans', sans-serif;
+      font-size: 100%;
+      font-weight: 300;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+    }
+
+    p {
+      font-size: 1rem;
+    }
+
+    .container {
+      margin: 0 auto 0 auto;
+      border: 1px solid black;
+      width: 1024px;
+      height: 768px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Emscripten WebAssembly Image Viewer Demo</h1>
+  <div id="container" class="container">
+    <canvas id="canvas" class="canvas"></canvas>
+  </div>
+  <p>
+    Drag and drop a JPEG image onto the canvas above.<br>
+    Use your scrollwheel to zoom in and out.
+  </p>
+  <script type="text/javascript">
+    const canvas = document.getElementById('canvas');
+    const container = document.getElementById('container');
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+
+    var Module = {};
+    Module.canvas = canvas;
+    Module.onRuntimeInitialized = () => {
+      ImageViewer.run(container, canvas);
+    };
+  </script>
+  <script type="text/javascript" src="renderer.js"></script>
+  <script type="text/javascript" src="main.js"></script>
+</body>
+</html>
