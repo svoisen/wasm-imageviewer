@@ -1,6 +1,6 @@
 CC=emcc
 SRC=renderer.cpp
-CFLAGS=-Werror -std=c++11 -O2 -g0
+CFLAGS=-Werror -std=c++11 -O3 -g0
 EMSCRIPTEN_FLAGS=-s USE_WEBGL2=1 \
 	-s USE_SDL=2 \
 	-s WASM=1 \
