@@ -15,7 +15,7 @@ const ImageViewer = {};
   }
 
   Program.prototype._setupMouseWheel = function(canvas) {
-    canvas.addEventListener('mousewheel', this._handleMouseWheel.bind(this));
+    canvas.addEventListener('wheel', this._handleMouseWheel.bind(this));
     canvas.addEventListener('DOMMouseScroll', this._handleMouseWheel.bind(this));
   }
 
