@@ -11,6 +11,8 @@ SDL_Window *window;
 SDL_GLContext glContext;
 GLuint program;
 GLuint texture;
+int textureWidth;
+int textureHeight;
 bool textureLoaded = false;
 
 GLfloat planeVertices[] = {
@@ -23,14 +25,15 @@ GLfloat planeVertices[] = {
 };
 
 const char vertexShaderSrc[] =
-    "#version 300 es                                                   \n"
-    "uniform float zoom;                                               \n"
-    "in vec4 vert;                                                     \n"
-    "out vec2 texCoord;                                                \n"
-    "void main() {                                                     \n"
-    "   gl_Position = vec4(vert.xy * zoom, 0.0f, 1.0f);                \n"
-    "   texCoord = vec2((vert.x + 1.0f) / 2.0f, (1.0f - vert.y) / 2.0);\n"
-    "}                                                                 \n";
+    "#version 300 es                                                          \n"
+    "uniform float zoom;                                                      \n"
+    "uniform float aspect;                                                    \n"
+    "in vec4 vert;                                                            \n"
+    "out vec2 texCoord;                                                       \n"
+    "void main() {                                                            \n"
+    "   gl_Position = vec4(vert.x * zoom, vert.y * aspect * zoom, 0.0f, 1.0f);\n"
+    "   texCoord = vec2((vert.x + 1.0f) / 2.0f, (1.0f - vert.y) / 2.0);       \n"
+    "}                                                                        \n";
 
 const char fragmentShaderSrc[] =
     "#version 300 es                        \n"
@@ -140,6 +143,10 @@ void render(float zoom) {
     GLuint zoomUniform = glGetUniformLocation(program, "zoom");
     glUniform1f(zoomUniform, zoom);
 
+    // Set aspect ratio
+    GLuint aspectUniform = glGetUniformLocation(program, "aspect");
+    glUniform1f(aspectUniform, (float)textureHeight/(float)textureWidth);
+
     // Draw
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -158,23 +165,23 @@ int loadJPEGImage(uint8_t* buffer, size_t size) {
         textureLoaded = false;
     }
 
-    int width, height, channels;
-    uint8_t* imageData = stbi_load_from_memory(buffer, static_cast<int>(size), &width, &height, &channels, STBI_rgb_alpha);
+    int channels;
+    uint8_t* imageData = stbi_load_from_memory(buffer, static_cast<int>(size), &textureWidth, &textureHeight, &channels, STBI_rgb_alpha);
     if (!imageData) {
         std::cerr << "Error loading image" << std::endl;
         return 0;
     } 
 
-    std::cout << "Loaded image with dimensions " << width << "x" << height << ", size " << size << ", and channels " << channels << std::endl;
+    std::cout << "Loaded image with dimensions " << textureWidth << "x" << textureHeight << ", size " << size << ", and channels " << channels << std::endl;
 
     // Generate texture
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
     glGenerateMipmap(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, 0);
 
