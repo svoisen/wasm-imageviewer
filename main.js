@@ -16,7 +16,6 @@ const ImageViewer = {};
 
   Program.prototype._setupMouseWheel = function(canvas) {
     canvas.addEventListener('wheel', this._handleMouseWheel.bind(this));
-    canvas.addEventListener('DOMMouseScroll', this._handleMouseWheel.bind(this));
   }
 
   Program.prototype._setupDragDrop = function () {
@@ -27,7 +26,7 @@ const ImageViewer = {};
   Program.prototype._handleMouseWheel = function(event) {
     event.stopPropagation();
     event.preventDefault();
-    const delta = Math.max(-1, Math.min(1, event.wheelDelta || -event.detail));
+    const delta = Math.max(-1, Math.min(1, -event.deltaY));
     this.zoom = Math.max(1, this.zoom + delta * 0.05);
     this._invalidate();
   }
